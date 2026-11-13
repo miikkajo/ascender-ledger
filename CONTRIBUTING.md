@@ -37,6 +37,10 @@ example:
 sudo ./quadlet/install.sh --http-port 8080 --https-port 8443
 ```
 
+For a rootless install, run the installer as your normal user without `sudo`;
+it defaults to ports 8080 and 8443 and manages the stack with
+`systemctl --user`.
+
 Source changes under `src/` are bind mounted, so restarting the affected
 service picks them up:
 

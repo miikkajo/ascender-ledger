@@ -26,4 +26,4 @@ Volume=ledger-vendor.volume:/var/www/html/vendor:z
 TimeoutStartSec=900
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

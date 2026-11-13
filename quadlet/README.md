@@ -6,16 +6,23 @@ services, so the stack is managed with `systemctl` instead of `podman compose`.
 Compose remains the default standalone deployment; these units are an
 alternative for systemd hosts.
 
+They can run as root or rootless as a normal user with lingering enabled.
+
 | Unit | Purpose |
 | ---- | ------- |
 | `ledger-web.build`, `ledger-web.container` | Reporting interface over HTTP and HTTPS on ports 80 and 443 by default |
 | `ledger-parser.build`, `ledger-parser.container` | Ascender log stream parser on HTTPS port 5000 |
-| `ledger-db.build`, `ledger-db.container` | MySQL database, published on `127.0.0.1:3306` |
+| `ledger-db.build`, `ledger-db.container` | MySQL database, reachable only by the other containers on the private network |
 | `ledger.network` | Private network shared by the three containers |
 | `ledger-db-data.volume` | Persistent `/var/lib/mysql` storage |
 | `ledger-vendor.volume` | Composer dependencies mounted over the checkout's missing `src/vendor` |
 
+The database port is not published on the host. `ledger-web` and
+`ledger-parser` reach it as `db` over the `ledger` network.
+
 ## Install
+
+### Rootful install
 
 The containers bind to ports 80 and 443 by default, so install the units as
 root:
@@ -41,21 +48,58 @@ sudo ./quadlet/install.sh --http-port 8080 --https-port 8443 \
 
 Use `--http-bind ::1` for IPv6 loopback.
 
+### Rootless install as a normal user
+
+Clone the repository as the user that will run Ledger, then run the installer
+as that user, without `sudo`:
+
+```bash
+./quadlet/install.sh
+```
+
+The installer automatically selects user mode when it is not run as root.
+Rootless installs default to host ports 8080 and 8443, because an unprivileged
+process cannot bind ports below `net.ipv4.ip_unprivileged_port_start` (usually
+1024). The containers still listen on 80 and 443 internally:
+
+```bash
+./quadlet/install.sh --http-port 8080 --https-port 8443
+```
+
+Enable lingering once so the user manager starts the stack at boot and keeps
+it running after you log out:
+
+```bash
+sudo loginctl enable-linger "$USER"
+```
+
+The installer tries to do this itself, but a normal user usually needs an
+administrator or polkit authorization. If lingering is not enabled, it warns
+and continues.
+
+In user mode the installer links this directory to
+`~/.config/containers/systemd/ascender-ledger`, creates the secrets in the
+user's Podman store, and manages the services with `systemctl --user`.
+
+### Both modes
+
 The installer:
 
-1. Links this directory to `/etc/containers/systemd/ascender-ledger`.
+1. Links this directory to the system or user Quadlet directory.
 2. Creates the `admin-password`, `db-ledger-password`, `firstkey`, and
    `secondkey` Podman secrets from the files in `../secrets/`.
 3. Generates a self-signed TLS certificate in `../certs/` when none is present,
    or installs the files given with `--tls-cert` and `--tls-key`.
-4. Writes a `ledger-web.container.d/10-ports.conf` drop-in when non-default
-   ports are requested.
+4. Writes `ledger-web.container.d/10-ports.conf` and
+   `ledger-parser.container.d/10-ports.conf` drop-ins when non-default ports
+   are requested.
 5. Reloads systemd and starts `ledger-web`, `ledger-parser`, and `ledger-db`.
 
-Pass `--no-start` to install without starting the stack.
+Pass `--no-start` to install without starting the stack. Use `--ingest-port`
+when port 5000 is already used by Ascender or another service.
 
 The units use paths relative to this directory, so keep the repository checkout
-in place after installation. The symlink in `/etc/containers/systemd` is
+in place after installation. The symlink in the Quadlet directory is
 intentional: replacing it with copied unit files would break the image build
 context and the `src` bind mounts.
 
@@ -67,8 +111,10 @@ read-only from `../certs/`.
 
 `install.sh` generates a self-signed certificate when `certs/ledger.crt` and
 `certs/ledger.key` do not exist, using the shared
-[`scripts/gen-certs.sh`](../scripts/gen-certs.sh). That script can also be run
-directly, which is how the Compose workflow creates the certificate. Its
+[`scripts/gen-certs.sh`](../scripts/gen-certs.sh). The examples below use the
+rootful install; omit `sudo` and use `systemctl --user` for a rootless install.
+That script can also be run directly, which is how the Compose workflow creates
+the certificate. Its
 subject alternative names include the host's FQDN, `localhost`, `127.0.0.1`,
 `::1`, `host.containers.internal`, `host.docker.internal`, and every address on
 the host. Add more names with `--tls-host`, which may be repeated:
@@ -111,9 +157,10 @@ https://ledger.example.com:8443
 ### Ingest listener (port 5000)
 
 The parser accepts Ascender's log stream over HTTPS on the same certificate and
-key mounted from `certs/`. There is no separate certificate to manage. Clients
-must trust that certificate; while it is self-signed, Ascender's aggregator has
-to skip verification (see below).
+key mounted from `certs/`. There is no separate certificate to manage. The host
+port defaults to 5000 and can be changed with `--ingest-port` when something
+else already uses it. Clients must trust that certificate; while it is
+self-signed, Ascender's aggregator has to skip verification (see below).
 
 Configure Ascender's logging settings:
 
@@ -152,6 +199,9 @@ sudo podman volume rm ledger-vendor
 sudo systemctl restart ledger-web.service ledger-parser.service
 ```
 
+For a rootless install, drop `sudo` and use `systemctl --user`; the volume is
+in the user's Podman storage.
+
 If the volume already contains files, Podman does not overwrite them, which is
 why the volume has to be removed rather than just restarted.
 
@@ -187,12 +237,14 @@ ip saddr 10.89.1.0/24 tcp dport 53 accept
 ```
 
 If Ascender sends job events to `ledger-parser`, it must also be able to reach
-port 5000, which serves HTTPS. For a containerized Ascender, point the log
-aggregator at `https://host.containers.internal` with port `5000` and the
-`https` protocol. With the default self-signed certificate, set
-`LOG_AGGREGATOR_VERIFY_CERT` to `false`; see the TLS section above. Do not
-publish port 5000 outside the Ascender network: it is an authenticated but
-still write-capable endpoint.
+the ingest port, which serves HTTPS (5000 by default). For a containerized
+Ascender, point the log aggregator at `https://host.containers.internal` with
+that port and the `https` protocol. With the default self-signed certificate,
+set `LOG_AGGREGATOR_VERIFY_CERT` to `false`; see the TLS section above. Do not
+publish the ingest port outside the Ascender network: it is an authenticated
+but still write-capable endpoint.
+
+The database port is not published, so it needs no firewall rule.
 
 ## Manage the stack
 
@@ -200,6 +252,14 @@ still write-capable endpoint.
 systemctl status ledger-web.service ledger-parser.service ledger-db.service
 systemctl restart ledger-web.service
 journalctl -u ledger-web.service -f
+```
+
+For a rootless install, use the same commands with `--user`:
+
+```bash
+systemctl --user status ledger-web.service ledger-parser.service ledger-db.service
+systemctl --user restart ledger-web.service
+journalctl --user -u ledger-web.service -f
 ```
 
 The `.build` units run automatically when a container service starts, and
@@ -225,6 +285,9 @@ sudo podman secret create --replace db-ledger-password secrets/db_ledger_passwor
 sudo systemctl restart ledger-web.service ledger-parser.service ledger-db.service
 ```
 
+For a rootless install, drop `sudo`, use `podman secret` in the user's store,
+and restart with `systemctl --user`.
+
 `secrets/admin_password.txt` seeds the initial admin account. Changing it later
 also resets the admin password the next time the database container starts.
 
@@ -234,6 +297,14 @@ also resets the admin password the next time the database container starts.
 sudo systemctl stop ledger-web.service ledger-parser.service ledger-db.service
 sudo rm /etc/containers/systemd/ascender-ledger
 sudo systemctl daemon-reload
+```
+
+For a rootless install:
+
+```bash
+systemctl --user stop ledger-web.service ledger-parser.service ledger-db.service
+rm ~/.config/containers/systemd/ascender-ledger
+systemctl --user daemon-reload
 ```
 
 The `ledger-db-data` volume and the Podman secrets are left in place. Remove

@@ -9,7 +9,8 @@ Environment=ADMIN_USER=admin
 Environment=admin-password=/run/secrets/admin-password
 Network=ledger.network
 NetworkAlias=db
-PublishPort=127.0.0.1:3306:3306
+# The database is reached by the web and parser containers over the private
+# ledger network, so it is deliberately not published on the host.
 Secret=db-ledger-password
 Secret=admin-password
 Volume=ledger-db-data.volume:/var/lib/mysql
@@ -18,4 +19,4 @@ Volume=ledger-db-data.volume:/var/lib/mysql
 TimeoutStartSec=900
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target

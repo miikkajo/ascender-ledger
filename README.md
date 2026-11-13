@@ -28,7 +28,7 @@ LEDGER_HTTP_PORT=8080 LEDGER_HTTPS_PORT=8443 docker compose up -d
 
 ### Podman Quadlet (alternative)
 
-The same stack can run under Podman Quadlet instead of Compose:
+The same stack can run under Podman Quadlet instead of Compose. To install it as root:
 
 ```bash
 sudo ./quadlet/install.sh
@@ -39,6 +39,15 @@ The installer links the units in [`quadlet/`](./quadlet) into `/etc/containers/s
 ```bash
 sudo ./quadlet/install.sh --http-port 8080 --https-port 8443
 ```
+
+To run rootless as a normal user, run the installer without `sudo` from a checkout owned by that user. It installs under `~/.config/containers/systemd`, manages the stack with `systemctl --user`, and defaults to ports 8080 and 8443:
+
+```bash
+./quadlet/install.sh
+sudo loginctl enable-linger "$USER"
+```
+
+The database is not published on the host; the web and parser containers reach it over the private `ledger` network.
 
 See [`quadlet/README.md`](./quadlet/README.md) for managing, updating, and removing the stack. Compose and Quadlet use the same container names and host ports, so run one or the other, not both at once.
 
