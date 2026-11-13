@@ -1,0 +1,7 @@
+[Unit]
+Description=Build the Ascender Ledger web image
+
+[Build]
+File=../dockerfiles/web-dockerfile
+SetWorkingDirectory=..
+ImageTag=localhost/ascender-ledger/ledger-web:latest

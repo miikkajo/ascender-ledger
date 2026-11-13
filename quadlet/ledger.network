@@ -1,0 +1,5 @@
+[Unit]
+Description=Ascender Ledger network
+
+[Network]
+NetworkName=ledger

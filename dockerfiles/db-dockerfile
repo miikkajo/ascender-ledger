@@ -1,4 +1,4 @@
-FROM rockylinux/rockylinux:9
+FROM docker.io/rockylinux/rockylinux:9
 
 # Add our mysql user and groups
 RUN groupadd -r mysql && useradd -r -g mysql mysql

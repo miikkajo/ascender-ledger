@@ -8,7 +8,7 @@ fi
 /usr/bin/mysqld_safe --user=root &
 
 # Check for the admin password. It will be in a different place depending on whether we are
-# running via docker-compose or kubernetes
+# running via Docker Compose, Podman Quadlet, or kubernetes
 ADMIN_PASSWORD_FILE=""
 if [ -f "/run/secrets/admin-password/admin-password" ]; then
   ADMIN_PASSWORD_FILE="/run/secrets/admin-password/admin-password"

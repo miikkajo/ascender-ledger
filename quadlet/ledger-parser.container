@@ -1,0 +1,25 @@
+[Unit]
+Description=Ascender Ledger log stream parser
+Requires=ledger-db.container
+After=ledger-db.container
+
+[Container]
+ContainerName=ledger-parser
+Image=ledger-parser.build
+PublishPort=5000:5000
+Environment=MYSQL_LEDGER_PASSWORD=/run/secrets/db-ledger-password
+Network=ledger.network
+Secret=db-ledger-password
+Volume=../src:/var/www/html:z
+# Same host certificate as the web UI, used by the HTTPS ingest listener.
+Volume=../certs:/etc/nginx/certs:ro,z
+# The checkout is bind mounted over /var/www/html, which would hide the vendor
+# directory that composer install created in the image.  Keep it in a named
+# volume that Podman seeds from the image on first use.
+Volume=ledger-vendor.volume:/var/www/html/vendor:z
+
+[Service]
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

@@ -13,11 +13,34 @@ A reporting tool for [Ascender](https://github.com/ctrliq/ascender). Ledger acce
 
 ## Installation
 
-Ledger is normally deployed alongside Ascender by the [Ascender installer](https://github.com/ctrliq/ascender-install), by setting `LEDGER_INSTALL: true`. To run it standalone:
+Ledger is normally deployed alongside Ascender by the [Ascender installer](https://github.com/ctrliq/ascender-install), by setting `LEDGER_INSTALL: true`. To run it standalone with Docker Compose:
 
 ```bash
+./scripts/gen-certs.sh
 docker compose up -d
 ```
+
+The first command creates a self-signed certificate in `certs/` for the web and ingest listeners; pass `--cert` and `--key` to use an existing certificate instead. If Ascender or another service already uses ports 80 and 443, set `LEDGER_HTTP_PORT` and `LEDGER_HTTPS_PORT`:
+
+```bash
+LEDGER_HTTP_PORT=8080 LEDGER_HTTPS_PORT=8443 docker compose up -d
+```
+
+### Podman Quadlet (alternative)
+
+The same stack can run under Podman Quadlet instead of Compose:
+
+```bash
+sudo ./quadlet/install.sh
+```
+
+The installer links the units in [`quadlet/`](./quadlet) into `/etc/containers/systemd`, creates the Podman secrets, starts the three services, and generates the certificate when needed. If Ascender or another service already uses ports 80 and 443, pass `--http-port` and `--https-port`:
+
+```bash
+sudo ./quadlet/install.sh --http-port 8080 --https-port 8443
+```
+
+See [`quadlet/README.md`](./quadlet/README.md) for managing, updating, and removing the stack. Compose and Quadlet use the same container names and host ports, so run one or the other, not both at once.
 
 ## Using Ledger
 
@@ -56,7 +79,7 @@ Ascender authenticates to Ledger with a token, so it keeps working when Ascender
 
 ## Configuration
 
-Container configuration lives in [`files/`](./files), and credentials are passed as Docker secrets rather than environment values. `secrets/admin_password.txt` seeds the initial admin account, and the MySQL password is read from `/run/secrets/db-ledger-password`.
+Container configuration lives in [`files/`](./files), and credentials are passed as secrets (Docker or Podman) rather than environment values. `secrets/admin_password.txt` seeds the initial admin account, and the MySQL password is read from `/run/secrets/db-ledger-password`. The Quadlet units are in [`quadlet/`](./quadlet).
 
 ## Included content
 

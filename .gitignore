@@ -2,3 +2,5 @@ src/twig/cache/*
 src/*.txt
 src/myadmin*
 src/vendor/*
+certs/
+quadlet/*.container.d/

@@ -1,0 +1,7 @@
+[Unit]
+Description=Build the Ascender Ledger parser image
+
+[Build]
+File=../dockerfiles/parser-dockerfile
+SetWorkingDirectory=..
+ImageTag=localhost/ascender-ledger/ledger-parser:latest

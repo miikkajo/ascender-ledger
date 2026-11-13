@@ -12,15 +12,42 @@ git clone https://github.com/<your-user>/ascender-ledger.git
 cd ascender-ledger
 ```
 
-Bring up the three containers locally:
+Bring up the three containers locally with Docker Compose:
 
 ```bash
+./scripts/gen-certs.sh
 docker compose up --build
+```
+
+`gen-certs.sh` creates the self-signed certificate used by the web and ingest
+listeners. Pass `--cert` and `--key` to use an existing certificate instead.
+
+Alternatively, run the same stack under Podman Quadlet:
+
+```bash
+sudo ./quadlet/install.sh
+```
+
+The installer links the units into `/etc/containers/systemd`, creates the
+Podman secrets, generates the certificate, and starts the services. If ports
+80 and 443 are already in use, pass `--http-port` and `--https-port`, for
+example:
+
+```bash
+sudo ./quadlet/install.sh --http-port 8080 --https-port 8443
+```
+
+Source changes under `src/` are bind mounted, so restarting the affected
+service picks them up:
+
+```bash
+sudo systemctl restart ledger-web.service
 ```
 
 The web tier is PHP served by nginx, the parser ingests the Ascender log
 stream, and the database is MySQL. Container configuration lives in
-[`files/`](./files) and credentials are passed as Docker secrets.
+[`files/`](./files), the Quadlet units live in [`quadlet/`](./quadlet), and
+credentials are passed as secrets (Docker or Podman).
 
 ## Running tests
 

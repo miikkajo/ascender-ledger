@@ -1,0 +1,5 @@
+[Unit]
+Description=Ascender Ledger database storage
+
+[Volume]
+VolumeName=ledger-db-data

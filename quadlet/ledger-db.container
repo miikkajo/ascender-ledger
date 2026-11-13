@@ -1,0 +1,21 @@
+[Unit]
+Description=Ascender Ledger database
+
+[Container]
+ContainerName=ledger-db
+Image=ledger-db.build
+Environment=MYSQL_LEDGER_PASSWORD=/run/secrets/db-ledger-password
+Environment=ADMIN_USER=admin
+Environment=admin-password=/run/secrets/admin-password
+Network=ledger.network
+NetworkAlias=db
+PublishPort=127.0.0.1:3306:3306
+Secret=db-ledger-password
+Secret=admin-password
+Volume=ledger-db-data.volume:/var/lib/mysql
+
+[Service]
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

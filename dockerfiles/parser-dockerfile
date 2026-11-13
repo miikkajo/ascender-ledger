@@ -1,4 +1,4 @@
-FROM rockylinux/rockylinux:9
+FROM docker.io/rockylinux/rockylinux:9
 
 # Installing dependencies for the PHP modules
 RUN dnf -y install epel-release
@@ -24,6 +24,10 @@ COPY ./files/supervisor-web.conf /etc/supervisord.conf
 COPY ./files/php-fpm.conf /etc/php-fpm.d/www.conf
 
 COPY ./src /var/www/html
+
+# The web server runs as the unprivileged nginx user; keep the image readable
+# even when the checkout was created with a restrictive umask.
+RUN chmod -R a+rX /var/www/html
 
 # Install exactly what composer.lock pins, without development packages
 RUN cd /var/www/html && COMPOSER_ALLOW_SUPERUSER=1 /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction

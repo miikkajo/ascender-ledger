@@ -1,0 +1,5 @@
+[Unit]
+Description=Ascender Ledger Composer vendor directory
+
+[Volume]
+VolumeName=ledger-vendor

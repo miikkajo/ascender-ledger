@@ -1,0 +1,7 @@
+[Unit]
+Description=Build the Ascender Ledger database image
+
+[Build]
+File=../dockerfiles/db-dockerfile
+SetWorkingDirectory=..
+ImageTag=localhost/ascender-ledger/ledger-db:latest
